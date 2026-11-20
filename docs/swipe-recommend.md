@@ -99,3 +99,19 @@ npm run test:swipe
 - [ ] 综合/真人/漫剧/AI 四类均能出流并播放。
 - [ ] 不感兴趣后当前剧不再出现（`hongguo:swipe:hidden:v1`）。
 - [ ] 安装包覆盖安装后功能仍在，`app-update.yml` 指向 fork。
+
+## 6. 当前自建通道（本机已落地）
+
+- fork：`https://github.com/cunzhang144/hongguo-drama`（分支 `swipe`）
+- Release：`v7.7.0`（安装包 + `latest.yml` + SHA256）
+- 客户端更新源：`src/native/repo-info.js` 统一提供 owner/repo，默认 `cunzhang144/hongguo-drama`；
+  `app-update.yml`、electron-updater feed、检查更新 API/发布页、公告地址都从这里取。
+  可用 `HONGGUO_REPO_OWNER` / `HONGGUO_REPO_NAME` 覆盖，便于再次迁移。
+- 已安装版本：`7.7.0`（build 7.7.1），`D:\Apps\hongguo-downloader`；更新检查已验证返回本 fork 的 Release URL。
+
+### 发新版本
+
+1. 改 `package.json`、`package-lock.json` 与各 `artifactName` 到下一个 `X.Y.0`（如 `7.8.0`），`buildVersion` 同步。
+2. `npm run check:swipe && npm run test:swipe`。
+3. 打 tag（如 `v7.8.0`）推送；`swipe-release` 工作流会取 ffmpeg、构建 NSIS 并发布到本仓库。
+4. 若 Actions 不可用，本地 `npm run build:swipe` 后 `gh release upload` 替换 Release 资产即可。
