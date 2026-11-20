@@ -122,12 +122,15 @@ npm run test:swipe
 
 - 构建：`.github/workflows/android-swipe.yml`（workflow_dispatch 或 `android-v*` tag），使用 JDK21 + 预装 Android SDK 36 + build-tools 36.0.0。
 - 包名：`io.github.hongguo.personal2`（`build.py --standalone`，与官方/旧个人版共存）。
-- 当前版本：`1.2` / versionCode `10200`；首个 Release：`android-v1.2.0`。
+- 当前版本：`1.3.0` / versionCode `10300`；Release：`android-v1.3.0`。
 - 签名：`android/.private/install.p12` + `password`（已同步为仓库 Secrets `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD`）。
   **必须保管好这份密钥**：丢失后无法覆盖升级，只能卸载重装（会丢应用私有数据）。
 - 滑动推荐接入：`android/mobile/bridge.js` 增加 `recommendFeed`（复用桌面同款 landpage 流），
   App 导航精简为「发现 / 推荐 / 剧库 / 记录」，其余入口收进设置；CSS 增加 `touch-action` 与安全区适配。
 - 升级规则：同包名 + 同签名 + versionCode 递增 → 覆盖安装保留设置、历史与滑动功能。
   发新版时改 `android/package.json` 的 `standaloneVersion`（如 `1.3.0`），打 `android-v1.3.0` tag。
+- 1.3.0 交互：推荐页倍速（0.75×–4×，长按 0.3s 临时 4×、松手恢复）；
+  安卓全屏使用 WebView 内沉浸层（隐藏 App 外壳），按视频宽高比请求横/竖屏，返回键先退出全屏；
+  全屏下方 1/3 横向拖动调进度，无任何常驻按钮；类型只保留「综合 / 真人剧 / 漫剧」（AI 剧并入漫剧）。
 - 已知边界：未做真机验收；WebView 的 HEVC 解码取决于机型；在线播放按集准备（单集 64MB 上限），
   滑动页会预取 1 集，低内存设备可改成不预取。

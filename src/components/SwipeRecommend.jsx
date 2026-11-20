@@ -11,9 +11,45 @@ import './SwipeRecommend.css';
 const SEEN_KEY = 'hongguo:swipe:seen:v1';
 const HIDDEN_KEY = 'hongguo:swipe:hidden:v1';
 const GENRE_KEY = 'hongguo:swipe:genre:v1';
+const RATE_KEY = 'hongguo:swipe:rate:v1';
+const RATE_OPTIONS = [0.75, 1, 1.25, 1.5, 2, 3, 4];
+const LONG_PRESS_MS = 300;
+const LONG_PRESS_RATE = 4;
 const PREFETCH_RETRY_MS = 15000;
 const SWIPE_LOCK_MS = 500;
 const SAVE_INTERVAL_SECONDS = 5;
+
+const IconHeart = ({ size = 20, filled = false }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.7-7.6 1.1-1a5.5 5.5 0 0 0 0-7.8Z" />
+  </svg>
+);
+const IconList = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+  </svg>
+);
+const IconBlock = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" /><path d="m5.6 5.6 12.8 12.8" />
+  </svg>
+);
+const IconVolume = ({ size = 20, muted = false }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+    {muted ? <path d="m16 9 5 6M21 9l-5 6" /> : <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 6a9 9 0 0 1 0 12" />}
+  </svg>
+);
+const IconFullscreen = ({ size = 20, exit = false }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {exit ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />}
+  </svg>
+);
+const IconSpeed = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4.9 19a9 9 0 1 1 14.2 0" /><path d="m12 13 4-4" /><circle cx="12" cy="13" r="1.2" fill="currentColor" stroke="none" />
+  </svg>
+);
 
 const readIdList = (key) => {
   try {
@@ -23,6 +59,20 @@ const readIdList = (key) => {
 };
 const writeIdList = (key, set) => {
   try { window.localStorage.setItem(key, JSON.stringify(capSeenList([...set]))); } catch (_) { /* 存储失败不阻断播放 */ }
+};
+const readRate = () => {
+  try {
+    const value = Number(window.localStorage.getItem(RATE_KEY));
+    return RATE_OPTIONS.includes(value) ? value : 1;
+  } catch (_) { return 1; }
+};
+const isAndroid = () => {
+  try { return window.electronAPI?.platform === 'android'; } catch (_) { return false; }
+};
+const formatTime = (seconds) => {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const total = Math.floor(seconds);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 };
 
 /** 释放一次在线播放会话；失败不影响切集。 */
@@ -51,10 +101,13 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
   const [controlsVisible, setControlsVisible] = useState(true);
   const [episodesOpen, setEpisodesOpen] = useState(false);
   const [favorite, setFavorite] = useState(false);
-  const [likedEpisode, setLikedEpisode] = useState(false);
   const [prefetching, setPrefetching] = useState(false);
   const [progress, setProgress] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [rate, setRate] = useState(readRate);
+  const [speedOpen, setSpeedOpen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [seekHint, setSeekHint] = useState(null);
 
   const containerRef = useRef(null);
   const videoRef = useRef(null);
@@ -78,8 +131,26 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
   const resumeOnReturnRef = useRef(0);
   const switchingRef = useRef(false);
   const progressRef = useRef(0);
+  const rateRef = useRef(rate);
+  const longPressTimerRef = useRef(null);
+  const longPressActiveRef = useRef(false);
+  const gestureRef = useRef(null);
+  const fullscreenRef = useRef(false);
 
   activeRef.current = active;
+  rateRef.current = rate;
+  fullscreenRef.current = fullscreen;
+
+  const applyRate = useCallback((value, temporary = false) => {
+    const video = videoRef.current;
+    const next = Number(value) || 1;
+    if (video) video.playbackRate = next;
+    if (!temporary) {
+      rateRef.current = next;
+      setRate(next);
+      try { window.localStorage.setItem(RATE_KEY, String(next)); } catch (_) { /* 忽略 */ }
+    }
+  }, []);
 
   const persistPosition = useCallback((ended = false) => {
     const video = videoRef.current;
@@ -151,9 +222,7 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
     const current = seriesRef.current?.item;
     const resolved = readLocalLibrary();
     const record = current ? resolved.items.find(entry => entry.id === String(current.series_id)) : null;
-    const ep = seriesRef.current?.episodes?.[episodeIndexRef.current];
     setFavorite(record?.favorite === true);
-    setLikedEpisode(!!ep?.vid && (record?.liked_episode_ids || []).includes(String(ep.vid)));
   }, []);
 
   /** 取播放地址：优先复用预取，失败再单独请求。 */
@@ -385,6 +454,45 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
 
   useEffect(() => () => { playTokenRef.current += 1; stopPlayback(); }, [stopPlayback]);
 
+  // 全屏状态：安卓用 WebView 内沉浸层（手势可用），桌面用浏览器全屏。
+  useEffect(() => {
+    const onChange = () => {
+      if (isAndroid()) return;
+      const on = !!document.fullscreenElement;
+      setFullscreen(on);
+      setSpeedOpen(false);
+      if (!on) {
+        setControlsVisible(true);
+        if (longPressActiveRef.current) {
+          longPressActiveRef.current = false;
+          applyRate(rateRef.current);
+        }
+      }
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    };
+  }, [applyRate]);
+
+  // 安卓返回键：优先退出沉浸全屏，其次交给 App 的返回逻辑。
+  useEffect(() => {
+    const exitImmersive = () => {
+      if (!fullscreenRef.current) return false;
+      exitFullscreen();
+      return true;
+    };
+    window.__swipeFullscreenExit = exitImmersive;
+    return () => {
+      if (window.__swipeFullscreenExit === exitImmersive) delete window.__swipeFullscreenExit;
+      if (fullscreenRef.current) exitFullscreen();
+      document.documentElement.classList.remove('swipe-immersive');
+      try { window.Native?.setPlaybackOrientation?.('auto'); } catch (_) { /* 忽略 */ }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 键盘：与手机端一致的上下切集 + 桌面播放快捷键。
   useEffect(() => {
     if (!active) return undefined;
@@ -405,21 +513,24 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
         case 'm': case 'M': setMuted(value => !value); break;
         case 'l': case 'L': toggleFavorite(); break;
         case 's': case 'S': void nextDrama({ skipCurrent: true }); break;
-        case 'Escape': if (episodesOpen) setEpisodesOpen(false); break;
+        case 'Escape':
+          if (episodesOpen) setEpisodesOpen(false);
+          else if (speedOpen) setSpeedOpen(false);
+          break;
         default: break;
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, goNext, goPrevious, episodesOpen, nextDrama]);
+  }, [active, goNext, goPrevious, episodesOpen, speedOpen, nextDrama]);
 
   // 滚轮/触控板：累计位移过阈值才切集，避免轻微滚动误触。
   useEffect(() => {
     const node = containerRef.current;
     if (!node || !active) return undefined;
     const onWheel = (event) => {
-      if (episodesOpen) return;
+      if (episodesOpen || speedOpen) return;
       event.preventDefault();
       const now = performance.now();
       if (now - wheelRef.current.at < SWIPE_LOCK_MS) return;
@@ -431,25 +542,7 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
     };
     node.addEventListener('wheel', onWheel, { passive: false });
     return () => node.removeEventListener('wheel', onWheel);
-  }, [active, episodesOpen, goNext, goPrevious]);
-
-  // 指针拖拽（触屏/鼠标）：竖直拖动超过 80px 切集。
-  const pointerStartRef = useRef(null);
-  const suppressClickRef = useRef(false);
-  const onPointerDown = (event) => {
-    if (event.target.closest('button, input, .swipe-episodes')) return;
-    pointerStartRef.current = { y: event.clientY, at: performance.now() };
-    suppressClickRef.current = false;
-  };
-  const onPointerUp = (event) => {
-    const start = pointerStartRef.current;
-    pointerStartRef.current = null;
-    if (!start) return;
-    const delta = start.y - event.clientY;
-    suppressClickRef.current = Math.abs(delta) > 12;
-    if (Math.abs(delta) < 80 || performance.now() - start.at > 900) return;
-    if (delta > 0) goNext(); else goPrevious();
-  };
+  }, [active, episodesOpen, speedOpen, goNext, goPrevious]);
 
   const toggleFavorite = () => {
     const current = seriesRef.current?.item;
@@ -460,8 +553,8 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
     const liked = new Set(record?.liked_episode_ids || []);
     const nextLiked = !favorite;
     if (ep?.vid) {
-      if (nextLiked && !favorite) liked.add(String(ep.vid));
-      if (!nextLiked) liked.delete(String(ep.vid));
+      if (nextLiked) liked.add(String(ep.vid));
+      else liked.delete(String(ep.vid));
     }
     const result = saveLocalSeries({
       id: String(current.series_id),
@@ -475,11 +568,128 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
     refreshFavorite();
   };
 
-  const toggleFullscreen = () => {
+  const setImmersive = (on) => {
+    setFullscreen(on);
+    fullscreenRef.current = on;
+    setSpeedOpen(false);
+    setControlsVisible(on ? false : true);
+    document.documentElement.classList.toggle('swipe-immersive', on);
+  };
+
+  const exitFullscreen = () => {
+    if (isAndroid()) {
+      setImmersive(false);
+      try { window.Native?.setPlaybackOrientation?.('auto'); } catch (_) { /* 忽略 */ }
+      return;
+    }
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  };
+
+  const toggleFullscreen = async () => {
     const node = containerRef.current;
     if (!node) return;
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    else node.requestFullscreen?.().catch(() => {});
+    if (isAndroid()) {
+      if (fullscreenRef.current) { exitFullscreen(); return; }
+      const video = videoRef.current;
+      const landscape = !!video && video.videoWidth > 0 && video.videoHeight > 0 && video.videoWidth >= video.videoHeight;
+      try { window.Native?.setPlaybackOrientation?.(landscape ? 'landscape' : 'portrait'); } catch (_) { /* 忽略 */ }
+      setImmersive(true);
+      return;
+    }
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+      return;
+    }
+    try { await node.requestFullscreen(); } catch (_) { /* 不支持时保留普通布局 */ }
+  };
+
+  const togglePlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) video.play().catch(() => {});
+    else video.pause();
+  };
+
+  // 手势：全屏下 1/3 区域横向拖动调进度；长按 0.3s 4 倍速；其他区域上下滑切集。
+  const clearLongPress = () => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+  };
+  const onPointerDown = (event) => {
+    if (event.target.closest('button, input, .swipe-episodes, .swipe-speed-menu')) return;
+    const node = containerRef.current;
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    const video = videoRef.current;
+    const isFull = fullscreenRef.current || document.fullscreenElement === node;
+    const start = {
+      x: event.clientX, y: event.clientY, at: performance.now(), moved: false,
+      seek: isFull && (event.clientY - rect.top) >= rect.height * (2 / 3),
+      time: video && Number.isFinite(video.currentTime) ? video.currentTime : 0,
+      duration: video && Number.isFinite(video.duration) ? video.duration : 0,
+      rect,
+    };
+    gestureRef.current = start;
+    longPressActiveRef.current = false;
+    clearLongPress();
+    longPressTimerRef.current = setTimeout(() => {
+      const gesture = gestureRef.current;
+      if (!gesture || gesture.moved || longPressActiveRef.current) return;
+      longPressActiveRef.current = true;
+      applyRate(LONG_PRESS_RATE, true);
+      try { navigator.vibrate?.(10); } catch (_) { /* 忽略 */ }
+    }, LONG_PRESS_MS);
+  };
+
+  const onPointerMove = (event) => {
+    const gesture = gestureRef.current;
+    if (!gesture) return;
+    const dx = event.clientX - gesture.x;
+    const dy = event.clientY - gesture.y;
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+      gesture.moved = true;
+      clearLongPress();
+    }
+    if (gesture.seek && gesture.duration > 0 && Math.abs(dx) > 4) {
+      const next = Math.max(0, Math.min(gesture.duration, gesture.time + (dx / Math.max(1, gesture.rect.width)) * gesture.duration * 1.5));
+      const video = videoRef.current;
+      if (video) video.currentTime = next;
+      setSeekHint({ time: next, duration: gesture.duration });
+    }
+  };
+
+  const onPointerUp = (event) => {
+    clearLongPress();
+    const gesture = gestureRef.current;
+    gestureRef.current = null;
+    if (!gesture) return;
+    if (longPressActiveRef.current) {
+      longPressActiveRef.current = false;
+      applyRate(rateRef.current);
+      return;
+    }
+    if (gesture.seek) {
+      setSeekHint(null);
+      persistPosition(false);
+      return;
+    }
+    if (gesture.moved) {
+      const dy = gesture.y - event.clientY;
+      if (Math.abs(dy) < 80 || performance.now() - gesture.at > 900) return;
+      if (dy > 0) goNext(); else goPrevious();
+      return;
+    }
+    togglePlay();
+  };
+
+  const onPointerCancel = () => {
+    clearLongPress();
+    gestureRef.current = null;
+    if (longPressActiveRef.current) {
+      longPressActiveRef.current = false;
+      applyRate(rateRef.current);
+    }
+    setSeekHint(null);
   };
 
   const changeGenre = (id) => {
@@ -501,13 +711,10 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
     });
   };
 
-  // React state 的 genre 变化由 changeGenre 主动开流，这里不再重复触发。
-
   const currentEpisode = episodes[episodeIndex] || null;
   const metaLine = useMemo(() => {
     if (!currentEpisode) return '';
-    const total = episodes.length;
-    return `${formatEpisodeLabel(currentEpisode, episodeIndex)} · 共 ${total} 集`;
+    return `${formatEpisodeLabel(currentEpisode, episodeIndex)} · 共 ${episodes.length} 集`;
   }, [currentEpisode, episodeIndex, episodes.length]);
 
   const retry = () => {
@@ -518,10 +725,12 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
   return (
     <div
       ref={containerRef}
-      className={`swipe-page ${controlsVisible ? '' : 'is-clean'}`}
+      className={`swipe-page ${controlsVisible ? '' : 'is-clean'} ${fullscreen ? 'is-fullscreen' : ''}`}
       onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onMouseLeave={() => { pointerStartRef.current = null; }}
+      onPointerCancel={onPointerCancel}
+      onMouseLeave={() => { if (!longPressActiveRef.current) onPointerCancel(); }}
     >
       <div className="swipe-stage">
         {videoUrl ? (
@@ -531,8 +740,10 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
             muted={muted}
             playsInline
             autoPlay
+            onLoadedMetadata={(event) => { event.currentTarget.playbackRate = rateRef.current; }}
             onCanPlay={(event) => {
               const video = event.currentTarget;
+              video.playbackRate = rateRef.current;
               if (pendingSeekRef.current > 0 && pendingSeekRef.current < video.duration - 1) {
                 video.currentTime = pendingSeekRef.current;
               }
@@ -568,12 +779,6 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
               goNext();
             }}
             onError={() => { setStatus('error'); setError('片源加载失败，请重试或换一部'); }}
-            onClick={(event) => {
-              if (suppressClickRef.current) { suppressClickRef.current = false; return; }
-              const video = event.currentTarget;
-              if (video.paused) video.play().catch(() => {});
-              else video.pause();
-            }}
           >
             <track kind="captions" />
           </video>
@@ -600,28 +805,44 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
         </header>
 
         <div className="swipe-rail">
+          <div className="swipe-rail-group">
+            <button type="button" className={`swipe-rail-btn ${speedOpen ? 'active' : ''}`}
+              title={t('播放速度')} onClick={() => setSpeedOpen(value => !value)}>
+              <span className="swipe-rail-icon"><IconSpeed /></span>
+              <span>{rate}x</span>
+            </button>
+            {speedOpen && (
+              <div className="swipe-speed-menu" role="menu" aria-label={t('播放速度')}>
+                {RATE_OPTIONS.map(option => (
+                  <button key={option} type="button" role="menuitemradio" aria-checked={rate === option}
+                    className={`swipe-speed-option ${rate === option ? 'active' : ''}`}
+                    onClick={() => { applyRate(option); setSpeedOpen(false); }}>{option}x</button>
+                ))}
+              </div>
+            )}
+          </div>
           <button type="button" className={`swipe-rail-btn ${favorite ? 'active' : ''}`} aria-pressed={favorite}
             title={t('收藏本集')} onClick={toggleFavorite}>
-            <span className="swipe-rail-icon">♥</span>
+            <span className="swipe-rail-icon"><IconHeart filled={favorite} /></span>
             <span>{t(favorite ? '已收藏' : '收藏')}</span>
           </button>
           <button type="button" className="swipe-rail-btn" title={t('选择分集')}
             onClick={() => setEpisodesOpen(value => !value)}>
-            <span className="swipe-rail-icon">☰</span>
+            <span className="swipe-rail-icon"><IconList /></span>
             <span>{t('选集')}</span>
           </button>
           <button type="button" className="swipe-rail-btn" title={t('不感兴趣')}
             onClick={() => void nextDrama({ skipCurrent: true })}>
-            <span className="swipe-rail-icon">✕</span>
+            <span className="swipe-rail-icon"><IconBlock /></span>
             <span>{t('不感兴趣')}</span>
           </button>
           <button type="button" className="swipe-rail-btn" title={t('静音')} onClick={() => setMuted(value => !value)}>
-            <span className="swipe-rail-icon">{muted ? '🔇' : '🔊'}</span>
+            <span className="swipe-rail-icon"><IconVolume muted={muted} /></span>
             <span>{t(muted ? '已静音' : '声音')}</span>
           </button>
-          <button type="button" className="swipe-rail-btn" title={t('全屏')} onClick={toggleFullscreen}>
-            <span className="swipe-rail-icon">⛶</span>
-            <span>{t('全屏')}</span>
+          <button type="button" className="swipe-rail-btn" title={t(fullscreen ? '退出全屏' : '全屏')} onClick={toggleFullscreen}>
+            <span className="swipe-rail-icon"><IconFullscreen exit={fullscreen} /></span>
+            <span>{t(fullscreen ? '退出' : '全屏')}</span>
           </button>
         </div>
 
@@ -634,12 +855,7 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
           {!!(item?.tags || []).length && <p className="swipe-tags">{item.tags.map(tag => <span key={tag}>{tag}</span>)}</p>}
           {!!item?.description && <p className="swipe-desc">{item.description}</p>}
           <div className="swipe-progress-row">
-            <button type="button" className="swipe-play" onClick={() => {
-              const video = videoRef.current;
-              if (!video) return;
-              if (video.paused) video.play().catch(() => {});
-              else video.pause();
-            }} aria-label={t(playing ? '暂停' : '播放')}>
+            <button type="button" className="swipe-play" onClick={togglePlay} aria-label={t(playing ? '暂停' : '播放')}>
               {playing ? <Pause size={18} /> : <Play size={18} />}
             </button>
             <input
@@ -656,7 +872,7 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
               }}
               aria-label={t('播放进度')}
             />
-            <span className="swipe-hint">{t('滚轮 / ↑↓ 切集')}</span>
+            <span className="swipe-time">{formatTime(progress / 1000 * (videoRef.current?.duration || 0))}</span>
           </div>
         </footer>
 
@@ -670,6 +886,14 @@ export default function SwipeRecommend({ active = true, onNavigate }) {
               <button type="button" className="btn btn-outline" onClick={() => void nextDrama({ skipCurrent: true })}>{t('换一部')}</button>
               {onNavigate && <button type="button" className="btn btn-outline" onClick={() => onNavigate('browse')}>{t('去发现页')}</button>}
             </div>
+          </div>
+        )}
+
+        {seekHint && (
+          <div className="swipe-seek-hint" aria-live="polite">
+            <strong>{formatTime(seekHint.time)}</strong>
+            <span>/ {formatTime(seekHint.duration)}</span>
+            <div className="swipe-seek-bar"><i style={{ width: `${Math.min(100, (seekHint.time / Math.max(1, seekHint.duration)) * 100)}%` }} /></div>
           </div>
         )}
 

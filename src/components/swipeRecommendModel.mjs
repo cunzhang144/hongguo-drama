@@ -1,9 +1,9 @@
 // 滑动推荐的纯逻辑：便于 node:test 覆盖游标、去重、切集边界与预取时机。
+// 产品口径：只区分真人剧与漫剧；AI 剧并入漫剧，不再单独展示。
 export const SWIPE_GENRES = [
   { id: 'mixed', label: '综合' },
   { id: 'real', label: '真人剧' },
   { id: 'comic', label: '漫剧' },
-  { id: 'ai', label: 'AI剧' },
 ];
 
 export const SEEN_LIMIT = 540;

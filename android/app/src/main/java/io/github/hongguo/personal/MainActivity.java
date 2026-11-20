@@ -50,6 +50,8 @@ public class MainActivity extends Activity {
     private FrameLayout root;
     private View fullscreen;
     private int orientationBeforeFullscreen;
+    private volatile String playbackOrientation = "auto";
+    private int orientationBeforePlayback = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
     private LinearLayout loginPanel;
     private WebView loginWeb;
     private WebChromeClient.CustomViewCallback fullscreenCallback;
@@ -236,7 +238,9 @@ public class MainActivity extends Activity {
                     fullscreen = view; fullscreenCallback = callback;
                     orientationBeforeFullscreen = getRequestedOrientation();
                     if (!getPackageName().equals("io.github.hongguo.tv"))
-                        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                        setRequestedOrientation("portrait".equals(playbackOrientation)
+                            ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                            : ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
                     web.setVisibility(View.GONE); root.addView(view, new FrameLayout.LayoutParams(-1,-1));
                     getWindow().getDecorView().setSystemUiVisibility(5894);
                 }
@@ -577,6 +581,27 @@ public class MainActivity extends Activity {
             if (closed) return;
             runOnUiThread(() -> { synchronized (requestLock) { if (!closed) showLogin(); } });
         }
+        @JavascriptInterface public void setPlaybackOrientation(final String mode) {
+            final String next = "portrait".equals(mode) || "landscape".equals(mode) ? mode : "auto";
+            final String previous = playbackOrientation;
+            playbackOrientation = next;
+            runOnUiThread(() -> {
+                if (closed) return;
+                try {
+                    if (!"auto".equals(next) && "auto".equals(previous)) {
+                        orientationBeforePlayback = getRequestedOrientation();
+                    }
+                    if ("portrait".equals(next)) {
+                        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+                    } else if ("landscape".equals(next)) {
+                        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                    } else if (!"auto".equals(previous)) {
+                        setRequestedOrientation(orientationBeforePlayback);
+                    }
+                } catch (Exception ignored) { /* 部分设备不支持运行时旋转 */ }
+            });
+        }
+
         @JavascriptInterface public boolean secureStorageAvailable() { if (closed) return false; try { return accountKey() != null; } catch (Exception error) { return false; } }
         @JavascriptInterface public String seal(String text) throws Exception {
             requireBusinessOpen();

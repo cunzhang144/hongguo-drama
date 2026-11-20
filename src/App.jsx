@@ -114,6 +114,8 @@ export default function App({ platformPages = {} }) {
   useEffect(() => {
     if (!mobile) return;
     window.appBack = () => {
+      // 滑动推荐在安卓上使用 WebView 内沉浸全屏，需要先由页面拦截返回键。
+      if (window.__swipeFullscreenExit?.()) return true;
       if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return true; }
       if (moreOpen) { setMoreOpen(false); return true; }
       if (episodesOpen) { setEpisodesOpen(false); return true; }

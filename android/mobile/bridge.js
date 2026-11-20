@@ -184,7 +184,7 @@ async function enqueue(payload) {
 
 Object.assign(api, {
   platform: 'android',
-  getAppInfo: async () => ({ version: '1.2.1', appName: '红果·自用', platform: 'android', brand: '红果短剧', mobile: true }),
+  getAppInfo: async () => ({ version: '1.3.0', appName: '红果·自用', platform: 'android', brand: '红果短剧', mobile: true }),
   getWindowLayout: async () => 'portrait', getAlwaysOnTop: async () => false,
   getSettings: async () => ({ ...defaults, ...clone(state.settings) }),
   saveSettings: guarded(async patch => {

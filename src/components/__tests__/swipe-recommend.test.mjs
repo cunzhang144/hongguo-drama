@@ -10,8 +10,8 @@ const drama = (id, title = `剧${id}`, extra = {}) => ({
 });
 const episode = (index, extra = {}) => ({ vid: String(700000 + index), vid_index: index, locked: false, ...extra });
 
-test('genre list matches the four App channels', () => {
-  assert.deepEqual(SWIPE_GENRES.map(item => item.id), ['mixed', 'real', 'comic', 'ai']);
+test('genre list only separates real drama from comic (AI merged into comic)', () => {
+  assert.deepEqual(SWIPE_GENRES.map(item => item.id), ['mixed', 'real', 'comic']);
 });
 
 test('feed merge deduplicates, skips seen/hidden and rejects foreign items', () => {
@@ -71,7 +71,8 @@ test('wheel deltas map to swipe directions with a dead zone', () => {
   assert.equal(resolveSwipeDirection(Number.NaN, 120), 0);
 });
 
-test('episode labels prefer the real title when available', () => {
+test('episode labels prefer the real title and skip duplicate placeholder titles', () => {
   assert.equal(formatEpisodeLabel(episode(3, { title: '风起' }), 2), '第 3 集 · 风起');
   assert.equal(formatEpisodeLabel(episode(3), 2), '第 3 集');
+  assert.equal(formatEpisodeLabel(episode(3, { title: '第3集' }), 2), '第 3 集');
 });

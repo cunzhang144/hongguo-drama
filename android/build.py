@@ -35,9 +35,9 @@ def main():
     tv = '--tv' in sys.argv
     standalone = '--standalone' in sys.argv and not tv
     if tv: BUILD = BUILD / 'tv'
-    desktop_version = json.loads((ROOT.parent/'package.json').read_text())['version']
-    tv_version = json.loads((ROOT/'package.json').read_text()).get('tvVersion') if tv else None
-    standalone_version = json.loads((ROOT/'package.json').read_text()).get('standaloneVersion') if standalone else None
+    desktop_version = json.loads((ROOT.parent/'package.json').read_text(encoding='utf-8'))['version']
+    tv_version = json.loads((ROOT/'package.json').read_text(encoding='utf-8')).get('tvVersion') if tv else None
+    standalone_version = json.loads((ROOT/'package.json').read_text(encoding='utf-8')).get('standaloneVersion') if standalone else None
     version, version_code = (tv_version_metadata(tv_version) if tv
         else tv_version_metadata(standalone_version) if standalone
         else ('1.1', 2))
@@ -65,24 +65,24 @@ def main():
     manifest = BUILD/'AndroidManifest.xml' if tv or standalone else ROOT/'app/src/main/AndroidManifest.xml'
     if tv:
         shutil.copytree(ROOT/'app/src/main/assets',assets,dirs_exist_ok=True)
-        html = (ROOT/'web/index.html').read_text().replace('红果·自用','红果短剧 TV').replace('个人版 1.1',f'TV候选版 {version}').replace('手机实播兼容性待真机验收','电视实播兼容性待真机验收')
+        html = (ROOT/'web/index.html').read_text(encoding='utf-8').replace('红果·自用','红果短剧 TV').replace('个人版 1.1',f'TV候选版 {version}').replace('手机实播兼容性待真机验收','电视实播兼容性待真机验收')
         html = html.replace('红果<span class="brand-dot">·</span>自用','红果<span class="brand-dot">·</span>TV')
         html = html.replace('src="app.js"', 'src="tv-startup.js"')
-        (assets/'index.html').write_text(html)
-        (assets/'style.css').write_text((assets/'style.css').read_text() + '\n' + (ROOT/'tv.css').read_text())
-        xml = (ROOT/'app/src/main/AndroidManifest.xml').read_text()
+        (assets/'index.html').write_text(html, encoding='utf-8')
+        (assets/'style.css').write_text((assets/'style.css').read_text(encoding='utf-8') + '\n' + (ROOT/'tv.css').read_text(encoding='utf-8'))
+        xml = (ROOT/'app/src/main/AndroidManifest.xml').read_text(encoding='utf-8')
         xml = xml.replace('package="io.github.hongguo.personal"',f'package="{package_name}"').replace('android:versionCode="2"',f'android:versionCode="{version_code}"').replace('android:versionName="1.1"',f'android:versionName="{version}"')
         xml = xml.replace('<application ', '<uses-feature android:name="android.software.leanback" android:required="true" /><uses-feature android:name="android.hardware.touchscreen" android:required="false" /><application android:banner="@drawable/tv_banner" ')
         xml = xml.replace('android:label="红果·自用"','android:label="红果短剧 TV"').replace('android:name=".MainActivity"','android:name="io.github.hongguo.personal.MainActivity" android:screenOrientation="landscape"')
         xml = xml.replace('android.intent.category.LAUNCHER','android.intent.category.LEANBACK_LAUNCHER')
         xml = xml.replace('<application ', '<queries><intent><action android:name="android.intent.action.VIEW" /><data android:mimeType="video/mp4" /></intent></queries><application ')
-        manifest.write_text(xml)
-        (resources/'drawable/tv_banner.xml').write_text('<layer-list xmlns:android="http://schemas.android.com/apk/res/android"><item android:width="320dp" android:height="180dp"><shape><solid android:color="#171b25" /></shape></item><item android:width="120dp" android:height="120dp" android:gravity="center" android:drawable="@drawable/icon" /></layer-list>')
+        manifest.write_text(xml, encoding='utf-8')
+        (resources/'drawable/tv_banner.xml').write_text('<layer-list xmlns:android="http://schemas.android.com/apk/res/android"><item android:width="320dp" android:height="180dp"><shape><solid android:color="#171b25" /></shape></item><item android:width="120dp" android:height="120dp" android:gravity="center" android:drawable="@drawable/icon" /></layer-list>', encoding='utf-8')
     elif standalone:
-        xml = (ROOT/'app/src/main/AndroidManifest.xml').read_text()
+        xml = (ROOT/'app/src/main/AndroidManifest.xml').read_text(encoding='utf-8')
         xml = xml.replace('package="io.github.hongguo.personal"',f'package="{package_name}"').replace('android:versionCode="2"',f'android:versionCode="{version_code}"').replace('android:versionName="1.1"',f'android:versionName="{version}"')
         xml = xml.replace('android:label="红果·自用"','android:label="红果·自用 新版"').replace('android:name=".MainActivity"','android:name="io.github.hongguo.personal.MainActivity"')
-        manifest.write_text(xml)
+        manifest.write_text(xml, encoding='utf-8')
     run(['node',ROOT/'bundle.cjs',*(['--tv'] if tv else [])],env)
     if not tv: run(['node',ROOT/'mobile/bundle.cjs'],env)
     shutil.copy2(ROOT.parent/'build/icon.png',resources/'drawable/icon.png')
@@ -91,9 +91,9 @@ def main():
     notices = []
     for dependency in ['buffer','base64-js','ieee754',*(['react','react-dom','scheduler'] if not tv else [])]:
         package_dir = (ROOT.parent if dependency in ['react','react-dom','scheduler'] else ROOT)/'node_modules'/dependency
-        dependency_version = json.loads((package_dir/'package.json').read_text())['version']
-        notices.append(f'{dependency} {dependency_version}\n' + (package_dir/'LICENSE').read_text())
-    (assets/'ANDROID-DEPENDENCIES.txt').write_text('\n\n'.join(notices))
+        dependency_version = json.loads((package_dir/'package.json').read_text(encoding='utf-8'))['version']
+        notices.append(f'{dependency} {dependency_version}\n' + (package_dir/'LICENSE').read_text(encoding='utf-8'))
+    (assets/'ANDROID-DEPENDENCIES.txt').write_text('\n\n'.join(notices), encoding='utf-8')
     run([tools/'aapt2','compile','--dir',resources,'-o',BUILD/'resources.zip'],env)
     unsigned = BUILD/'unsigned.apk'
     run([tools/'aapt2','link','-o',unsigned,'-I',platform,'--manifest',manifest,'-A',assets,BUILD/'resources.zip'],env)
@@ -122,8 +122,8 @@ def main():
     checksum = hashlib.sha256(output.read_bytes()).hexdigest()
     if tv and ("leanback-launchable-activity:" not in package or "uses-feature-not-required: name='android.hardware.touchscreen'" not in package):
         raise SystemExit('TV入口或无触屏声明缺失')
-    (BUILD/'verification.json').write_text(json.dumps({'file':output.name,'sha256':checksum,'bytes':output.stat().st_size,'package':package_name,'version':version,'minSdk':29,'targetSdk':34,'signature_verified':True,'device_tested':False,'source_version':desktop_version,'candidate':tv,**({'tv_version':tv_version,'version_code':version_code} if tv else {'standalone':standalone,'version_code':version_code} if standalone else {})},ensure_ascii=False,indent=2)+'\n')
-    (BUILD/'signature.txt').write_text(signature)
+    (BUILD/'verification.json').write_text(json.dumps({'file':output.name,'sha256':checksum,'bytes':output.stat().st_size,'package':package_name,'version':version,'minSdk':29,'targetSdk':34,'signature_verified':True,'device_tested':False,'source_version':desktop_version,'candidate':tv,**({'tv_version':tv_version,'version_code':version_code} if tv else {'standalone':standalone,'version_code':version_code} if standalone else {})},ensure_ascii=False,indent=2)+'\n', encoding='utf-8')
+    (BUILD/'signature.txt').write_text(signature, encoding='utf-8')
     print(f'APK构建与签名校验通过：{output.name} ({output.stat().st_size} bytes)')
     print(f'SHA256 {checksum}')
 
