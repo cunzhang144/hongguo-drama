@@ -234,7 +234,7 @@
         }
       ],
       "syncDesktopName": true,
-      "artifactName": "hongguo-downloader-7.6-linux-x64.${ext}",
+      "artifactName": "hongguo-downloader-7.7-linux-x64.${ext}",
       "extraFiles": [
         {
           "from": "build/linux-AppRun.sh",
