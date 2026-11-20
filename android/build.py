@@ -37,7 +37,10 @@ def main():
     if tv: BUILD = BUILD / 'tv'
     desktop_version = json.loads((ROOT.parent/'package.json').read_text())['version']
     tv_version = json.loads((ROOT/'package.json').read_text()).get('tvVersion') if tv else None
-    version, version_code = tv_version_metadata(tv_version) if tv else ('1.1.1', 3) if standalone else ('1.1', 2)
+    standalone_version = json.loads((ROOT/'package.json').read_text()).get('standaloneVersion') if standalone else None
+    version, version_code = (tv_version_metadata(tv_version) if tv
+        else tv_version_metadata(standalone_version) if standalone
+        else ('1.1', 2))
     package_name = 'io.github.hongguo.tv' if tv else 'io.github.hongguo.personal2' if standalone else 'io.github.hongguo.personal'
     sdk = Path(os.environ.get('ANDROID_HOME', '/opt/homebrew/share/android-commandlinetools'))
     java = Path(os.environ.get('JAVA_HOME', '/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home'))

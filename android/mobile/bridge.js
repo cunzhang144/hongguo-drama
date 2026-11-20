@@ -1,6 +1,7 @@
 import '../web/globals.js';
 import { browseList as appCatalog } from '../../src/native/hongguo-app-catalog.js';
 import { browseList as webCatalog } from '../../src/native/catalog.js';
+import { recommendFeed as recommendFeedShared } from '../../src/native/recommend-feed.js';
 import { searchApp } from '../../src/native/hongguo-app-search.js';
 import { fetchPublicDetails } from '../../src/native/public-details.js';
 import { fetchEpisodeComments } from '../../src/native/episode-comments.js';
@@ -183,7 +184,7 @@ async function enqueue(payload) {
 
 Object.assign(api, {
   platform: 'android',
-  getAppInfo: async () => ({ version: '1.1.0', appName: '红果·自用', platform: 'android', brand: '红果短剧', mobile: true }),
+  getAppInfo: async () => ({ version: '1.2.0', appName: '红果·自用', platform: 'android', brand: '红果短剧', mobile: true }),
   getWindowLayout: async () => 'portrait', getAlwaysOnTop: async () => false,
   getSettings: async () => ({ ...defaults, ...clone(state.settings) }),
   saveSettings: guarded(async patch => {
@@ -204,6 +205,12 @@ Object.assign(api, {
     if (options.source && options.source !== 'hongguo') throw new Error('安卓目前仅接入红果来源');
     return options.catalogChannel === 'app' ? appCatalog(options) : webCatalog(options);
   }),
+  // 滑动推荐：直接复用桌面同一份 App landpage 推荐流实现。
+  recommendFeed: guarded(options => recommendFeedShared({
+    genre: options?.genre,
+    reset: options?.reset === true,
+    exclude: options?.exclude,
+  })),
   searchSeries: async (keyword, options) => {
     if (!keyword?.trim() || keyword.length > 80) throw new Error('搜索词无效');
     if (options?.source && !['all','hongguo'].includes(options.source)) throw new Error('此来源尚未接入安卓');

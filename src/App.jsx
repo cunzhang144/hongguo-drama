@@ -19,6 +19,10 @@ import ReleaseCalendar from './components/ReleaseCalendar';
 import AccountManagement from './components/AccountManagement';
 import SwipeRecommend from './components/SwipeRecommend';
 
+// 手机端精简导航：保留发现、滑动推荐、剧库、记录；其余入口收进设置/更多。
+const MOBILE_TABS = ['browse', 'swipe', 'player', 'history'];
+const MOBILE_LABELS = { browse: '发现', swipe: '推荐', player: '剧库', history: '记录' };
+
 const MENU = [
   { id: 'browse', label: '发现短剧', icon: Home },
   { id: 'feed', label: '热播推荐', icon: Film },
@@ -284,15 +288,15 @@ export default function App({ platformPages = {} }) {
         {storageError && <div className="app-storage-error" role="alert"><span>{t(storageError)}</span><button className="btn btn-outline btn-sm" onClick={() => setStorageError('')}>{t("关闭提示")}</button></div>}
         {visited.map((id) => <main className="main-content" data-page={id} hidden={page !== id} key={id}>{t(renderPage(id))}</main>)}
         {mobile && <nav className="mobile-navigation" aria-label={t("手机主导航")}>
-          {MENU.filter(item => ['browse','download','player','history'].includes(item.id)).map(item => {
+          {MENU.filter(item => MOBILE_TABS.includes(item.id)).map(item => {
             const Icon = item.icon;
-            return <button key={item.id} aria-current={page === item.id ? 'page' : undefined} onClick={() => navigate(item.id)}><Icon size={21} /><span>{t(({ browse: '发现', download: '搜索', player: '剧库', history: '记录' })[item.id])}</span></button>;
+            return <button key={item.id} aria-current={page === item.id ? 'page' : undefined} onClick={() => navigate(item.id)}><Icon size={21} /><span>{t(MOBILE_LABELS[item.id])}</span></button>;
           })}
           <button aria-expanded={moreOpen} onClick={() => setMoreOpen(value => !value)}><Settings size={21} /><span>{t("更多")}</span></button>
         </nav>}
         {mobile && moreOpen && <div className="mobile-more-mask" onClick={() => setMoreOpen(false)}><section className="mobile-more" role="dialog" aria-modal="true" aria-label={t("更多功能")} onClick={event => event.stopPropagation()}>
           <h2>{t("更多功能")}</h2>
-          {MENU.filter(item => !['browse','download','player','history'].includes(item.id)).map(item => {
+          {MENU.filter(item => item.id === 'settings').map(item => {
             const Icon = item.icon; return <button key={item.id} onClick={() => navigate(item.id)}><Icon size={21} /><span>{t(item.label)}</span></button>;
           })}
           <button className="btn btn-outline" onClick={() => setMoreOpen(false)}>{t("关闭")}</button>
