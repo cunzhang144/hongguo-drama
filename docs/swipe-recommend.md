@@ -113,5 +113,7 @@ npm run test:swipe
 
 1. 改 `package.json`、`package-lock.json` 与各 `artifactName` 到下一个 `X.Y.0`（如 `7.8.0`），`buildVersion` 同步。
 2. `npm run check:swipe && npm run test:swipe`。
-3. 打 tag（如 `v7.8.0`）推送；`swipe-release` 工作流会取 ffmpeg、构建 NSIS 并发布到本仓库。
-4. 若 Actions 不可用，本地 `npm run build:swipe` 后 `gh release upload` 替换 Release 资产即可。
+3. 打 tag（如 `v7.8.0`）推送：`swipe-release` 工作流取 ffmpeg、构建 NSIS 并上传 Actions Artifacts（构建校验）。
+4. 正式发布：本地 `npm run build:swipe`（使用官方 7.6 的 ffmpeg/ffprobe/librempeg，功能完整），
+   然后 `gh release upload v7.8.0 -R <owner>/<repo> dist/* --clobber` 替换 Release 资产。
+   CI 主机缺少 librempeg，因此不让 CI 直接覆盖可用安装包。
