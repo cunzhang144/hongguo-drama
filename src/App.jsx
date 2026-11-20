@@ -1,7 +1,7 @@
 import { t, useLanguage } from './i18n';
 // 红果短剧：版本及发行状态见 package.json 和 docs/release-6.4.md。
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { Film, Download, Settings, Play, Home, Search, Clock, User } from './components/icons';
+import { Film, Download, Settings, Play, Home, Search, Clock, User, Flame } from './components/icons';
 import HongguoDownload from './components/HongguoDownload';
 import DownloadManager from './components/DownloadManager';
 import SettingsPage from './components/Settings';
@@ -17,10 +17,12 @@ import AnnouncementNotice from './components/AnnouncementNotice';
 import DramaFeed from './components/DramaFeed';
 import ReleaseCalendar from './components/ReleaseCalendar';
 import AccountManagement from './components/AccountManagement';
+import SwipeRecommend from './components/SwipeRecommend';
 
 const MENU = [
   { id: 'browse', label: '发现短剧', icon: Home },
   { id: 'feed', label: '热播推荐', icon: Film },
+  { id: 'swipe', label: '滑动推荐', icon: Flame },
   { id: 'download', label: '搜索与下载', icon: Search },
   { id: 'player', label: '我的剧库', icon: Play },
   { id: 'history', label: '观看记录', icon: Clock },
@@ -131,6 +133,8 @@ export default function App({ platformPages = {} }) {
         return playerMounted ? <Player portrait={layout === 'portrait'} episodesOpen={episodesOpen} setEpisodesOpen={setEpisodesOpen} actionsHidden={actionsHidden || (borderless && layout === 'portrait')} active={page === id} target={playerTarget} onSeriesSelected={rememberPlayerSeries} onFloatingChange={setFloatingPlayer} onNavigate={navigate} /> : null;
       case 'feed':
         return page === 'feed' ? <DramaFeed onNavigate={navigate} /> : null;
+      case 'swipe':
+        return <SwipeRecommend active={page === id} onNavigate={navigate} />;
       case 'calendar':
         return <ReleaseCalendar opening={calendarOpening} active={page === id} onPlay={async ({ seriesId }) => {
           if (pageRef.current !== 'calendar' || calendarOpeningRef.current) return;

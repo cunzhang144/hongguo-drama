@@ -6,6 +6,12 @@ const manifest = require('./software-player-assets.json');
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'public/software');
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
+// 允许通过镜像下载官方 Wasm 资源（raw.githubusercontent.com 在部分网络不可达）。
+// 支持 {commit}/{name} 占位符，例如 jsDelivr：https://fastly.jsdelivr.net/gh/zhaohappy/libmedia@{commit}/dist/{name}
+const assetTemplate = process.env.SOFTWARE_ASSETS_TEMPLATE || '';
+const assetUrl = (commit, name) => assetTemplate
+  ? assetTemplate.replace('{commit}', commit).replace('{name}', name)
+  : `https://raw.githubusercontent.com/zhaohappy/libmedia/${commit}/dist/${name}`;
 
 async function setup() {
   const entry = require.resolve('@libmedia/avplayer');
@@ -21,7 +27,7 @@ async function setup() {
   await Promise.all(Object.entries(manifest.files).map(async ([name, sha256]) => {
     const target = path.join(output, name);
     if (fs.existsSync(target) && digest(fs.readFileSync(target)) === sha256) return;
-    const response = await fetch(`https://raw.githubusercontent.com/zhaohappy/libmedia/${manifest.commit}/dist/${name}`,
+    const response = await fetch(assetUrl(manifest.commit, name),
       { signal: AbortSignal.timeout(60000) });
     if (!response.ok) throw new Error(`软件解码资源下载失败：${name} HTTP ${response.status}`);
     const bytes = Buffer.from(await response.arrayBuffer());

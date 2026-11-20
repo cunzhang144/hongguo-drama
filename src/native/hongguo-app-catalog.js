@@ -90,7 +90,7 @@ async function browseList(options = {}) {
   const pg = parseSearchInteger(page), ranking = RANKS[category];
   const sourceUrl = `${SITE}/${ranking ? 'rank' : 'category'}/${encodeURIComponent(category)}${pg > 1 ? `?page=${pg}` : ''}`;
   if ((!Object.hasOwn(CATEGORIES, category) && !Object.hasOwn(RANKS, category) && category !== 'comic') ||
-      !['default', 'browse'].includes(catalogScope) || typeof genre !== 'string' || (genre && (!/^cate_\d{1,8}$/.test(genre) || ranking)) || pg === null || pg < 1 || pg > 50) {
+      !['default', 'browse', 'recommend'].includes(catalogScope) || typeof genre !== 'string' || (genre && (!/^cate_\d{1,8}$/.test(genre) || ranking)) || pg === null || pg < 1 || pg > 50) {
     return fail(appError('App 分类、题材或页码无效', 'APP_INPUT'), sourceUrl);
   }
   if (category === 'comic') return { success: true, results: [], page: 1, total: 0, totalPages: 0, hasMore: false, genres: [], sourceUrl,

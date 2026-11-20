@@ -126,6 +126,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   browseCategories: () => ipcRenderer.invoke('browse-categories'),
   browseList: (options) => ipcRenderer.invoke('browse-list', options),
+  recommendFeed: (options) => ipcRenderer.invoke('recommend-feed', options),
   playSeries: (payload) => ipcRenderer.invoke('play-series', payload),
   onNavigate: (cb) => {
     const listener = (_e, data) => cb(data);

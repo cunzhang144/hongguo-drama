@@ -20,6 +20,9 @@
     "build:mac": "node scripts/setup-ffmpeg-mac.js arm64 x64 && npm run build:react && electron-builder --mac dmg zip --arm64 --x64 --publish never",
     "build:mac:dir": "node scripts/setup-ffmpeg-mac.js arm64 x64 && npm run build:react && electron-builder --mac --arm64 --x64 --dir --publish never",
     "test": "node scripts/test.cjs",
+    "test:swipe": "node --test src/components/__tests__/swipe-recommend.test.mjs",
+    "check:swipe": "node scripts/check-swipe-patch.cjs",
+    "build:swipe": "npm run build:react && node scripts/check-swipe-patch.cjs && electron-builder --win nsis --x64 --publish never",
     "setup:software": "node scripts/setup-software-player.cjs",
     "predev": "npm run setup:software",
     "prebuild:react": "npm run setup:software",
@@ -111,6 +114,7 @@
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": true,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
@@ -186,8 +190,8 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "jackotom",
-      "repo": "hongguo-drama"
+      "owner": "${env.GH_OWNER}",
+      "repo": "${env.GH_REPO}"
     },
     "linux": {
       "target": [

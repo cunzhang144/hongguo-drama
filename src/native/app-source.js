@@ -220,9 +220,33 @@ function signedSearchRequest({ keyword, page = 1, cursor = null, identity } = {}
     return { url, headers };
 }
 
-// Catalogue cursors belong to one anonymous identity; keep it in memory for this process only.
-const metadataDevice = { ...DEVICE, version_code: '73532', version_name: '7.3.5.32', manifest_version_code: '73532',
+// Catalogue cursors belong to one anonymous identity. Persist it per install so the
+// App's recommendation stream can accumulate taste instead of restarting every launch.
+const validMetadataIdentity = identity => identity
+    && ['iid', 'device_id'].every(key => typeof identity[key] === 'string'
+        && /^\d{1,30}$/.test(identity[key]) && /[1-9]/.test(identity[key]));
+let metadataDevice = { ...DEVICE, version_code: '73532', version_name: '7.3.5.32', manifest_version_code: '73532',
     update_version_code: '73532', pv_player: '73532', iid: localId(), device_id: localId() };
+function setMetadataIdentity(identity) {
+    if (!validMetadataIdentity(identity)) return false;
+    metadataDevice = { ...metadataDevice, iid: identity.iid, device_id: identity.device_id };
+    return true;
+}
+/** Load or create the persisted anonymous identity used by App catalogue/recommend requests. */
+function initMetadataDevice(file) {
+    try {
+        const fs = require('node:fs');
+        try {
+            const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (setMetadataIdentity(saved)) return { source: 'saved', iid: metadataDevice.iid, device_id: metadataDevice.device_id };
+        } catch (_) { /* first launch or a damaged file: create a new identity below */ }
+        fs.writeFileSync(file, JSON.stringify({ iid: metadataDevice.iid, device_id: metadataDevice.device_id, created_at: new Date().toISOString() }), 'utf8');
+        return { source: 'created', iid: metadataDevice.iid, device_id: metadataDevice.device_id };
+    } catch (error) {
+        // A read-only data directory must not block catalogue loading; keep the in-memory identity.
+        return { source: 'memory', error: error.message };
+    }
+}
 function signedMetadataRequest(apiPath, values = {}, payload = null) {
     if (!['/reading/distribution/category/landpage/v/', '/reading/bookapi/bookmall/cell/change/v'].includes(apiPath)) {
         throw new Error('不支持的 App 目录接口');
@@ -608,4 +632,4 @@ function parseAppPlayModel(info, vid, options, inline, requireEncryptionMetadata
         });
 }
 
-module.exports = { fetchAppPlayUrl, signedSearchRequest, signedMetadataRequest, signedAccountRequest, parseSearchInteger, preserveLargeJsonIntegers, requestJson, SEARCH_API, SEARCH_UA };
+module.exports = { fetchAppPlayUrl, signedSearchRequest, signedMetadataRequest, signedAccountRequest, parseSearchInteger, preserveLargeJsonIntegers, requestJson, initMetadataDevice, SEARCH_API, SEARCH_UA };

@@ -1550,6 +1550,20 @@ ipcMain.handle('browse-list', async (_event, options) => {
 
 const normalizeSearchTitle = value => String(value || '').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, '');
 
+ipcMain.handle('recommend-feed', async (_event, options) => {
+  if (proxyStartupFallback) return { success: false, items: [], error: '网络代理配置无效，请先在设置中修复或明确关闭代理。' };
+  const genre = options?.genre ?? 'mixed';
+  if (!['mixed', 'real', 'comic', 'ai'].includes(genre)) return { success: false, items: [], error: '不支持的推荐类型' };
+  if (options?.exclude != null && (!Array.isArray(options.exclude) || options.exclude.length > 540)) {
+    return { success: false, items: [], error: '推荐排除列表无效' };
+  }
+  return require('./src/native/recommend-feed').recommendFeed({
+    genre,
+    reset: options?.reset === true,
+    exclude: options?.exclude,
+  });
+});
+
 /** 标点/空格导致原名搜不到时，给出最多两个去标点或取首段的补搜词。 */
 function relaxedHongguoQueries(keyword) {
   const text = String(keyword || '').normalize('NFKC').trim();
@@ -5463,6 +5477,8 @@ if (hasSingleInstanceLock) app.whenReady().then(async () => {
     const dataFile = path.join(app.getPath('userData'), 'data.json');
     store.init(dataFile, { safeStorage });
     setDeviceIdentityFile(path.join(app.getPath('userData'), 'danmaku-client.json'));
+    // 推荐流使用稳定的匿名设备身份，App 端才能跨启动累积推荐偏好。
+    require('./src/native/app-source').initMetadataDevice(path.join(app.getPath('userData'), 'app-device.json'));
     loadDownloadTasks();
     loadSeriesRegistry();
     try { rebuildSeriesRegistryFromTasks(); } catch (_) { /* storage-error reports the failed write when the window opens. */ }
