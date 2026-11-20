@@ -45,6 +45,7 @@ const { pipeline } = require('node:stream/promises');
 const { randomUUID, createHash } = require('node:crypto');
 
 const hongguo = require('./src/native/hongguo');
+const repoInfo = require('./src/native/repo-info');
 const { boundedSignal, throwIfAborted } = require('./src/native/request-signal');
 const { normalizeDownloadQuality, meetsDownloadQuality } = require('./src/native/download-quality');
 const { decryptInWorker } = require('./src/native/decrypt-worker.cjs');
@@ -5174,17 +5175,17 @@ ipcMain.handle('check-app-update', async event => {
     return { enabled: false, release: null };
   }
   if (!updateRequest) {
-    updateRequest = axios.get('https://api.github.com/repos/jackotom/hongguo-drama/releases/latest', {
+    updateRequest = axios.get(repoInfo.LATEST_RELEASE_API, {
       timeout: 10000, maxRedirects: 0, maxContentLength: 1024 * 1024,
       headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Hongguo-Drama-Update-Check' },
-    }).catch(() => axios.get('https://github.com/jackotom/hongguo-drama/releases/latest', {
+    }).catch(() => axios.get(repoInfo.LATEST_RELEASE_PAGE, {
       // GitHub's public release endpoint does not consume the anonymous API quota.
       timeout: 10000, maxRedirects: 0, maxContentLength: 1024 * 1024,
       headers: { Accept: 'application/json', 'User-Agent': 'Hongguo-Drama-Update-Check' },
       validateStatus: status => status === 200 || status === 302,
     }).then(response => {
       if (response.status !== 302) return response;
-      const tag = /^https:\/\/github\.com\/jackotom\/hongguo-drama\/releases\/tag\/(v?\d+\.\d+(?:\.\d+)?)$/.exec(response.headers.location || '');
+      const tag = new RegExp(`^https://github\\.com/${repoInfo.OWNER}/${repoInfo.REPO}/releases/tag/(v?\\d+\\.\\d+(?:\\.\\d+)?)$`).exec(response.headers.location || '');
       if (!tag) throw new Error('Unexpected update redirect');
       return { data: { tag_name: tag[1] } };
     })).then(response => ({ release: availableRelease(response.data, APP_VERSION), error: '' }))
@@ -5200,7 +5201,7 @@ ipcMain.handle('open-app-update', async event => {
   if (IS_PREVIEW || !mainWindow || event.sender !== mainWindow.webContents || getCurrentSettings().app_updates_enabled === false) {
     return { success: false, error: '更新信息已失效，请稍后重试' };
   }
-  try { await shell.openExternal(latestAppRelease?.url || 'https://github.com/jackotom/hongguo-drama/releases/latest'); return { success: true }; }
+  try { await shell.openExternal(latestAppRelease?.url || repoInfo.LATEST_RELEASE_PAGE); return { success: true }; }
   catch { return { success: false, error: '无法打开浏览器，请稍后重试' }; }
 });
 

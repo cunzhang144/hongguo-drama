@@ -1,4 +1,4 @@
-const RELEASES_URL = 'https://github.com/jackotom/hongguo-drama/releases';
+const { RELEASES_URL } = require('./repo-info');
 
 function versionParts(value) {
   const match = /^v?(\d+)\.(\d+)(?:\.(\d+))?$/.exec(String(value || ''));
