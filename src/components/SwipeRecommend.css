@@ -1,5 +1,6 @@
 /* 滑动推荐：全屏竖屏沉浸式推荐流（对齐手机端 推荐 tab）。 */
-.main-content[data-page="swipe"] {
+/* 需要压过 .layout-portrait .main-content 的 padding，否则手机端四周留白。 */
+.app-layout .main-content[data-page="swipe"] {
   padding: 0;
   overflow: hidden;
 }
@@ -57,13 +58,15 @@
   z-index: 3;
 }
 
-.swipe-genres { display: flex; flex-wrap: wrap; gap: 8px; }
+.swipe-genres { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.swipe-genres::-webkit-scrollbar { display: none; }
 .swipe-genre {
+  flex: 0 0 auto;
   border: 1px solid rgba(255,255,255,.28);
   background: rgba(0,0,0,.32);
   color: rgba(255,255,255,.78);
   border-radius: 999px;
-  padding: 5px 13px;
+  padding: 5px 11px;
   font-size: 12px;
   cursor: pointer;
   backdrop-filter: blur(6px);
@@ -285,6 +288,7 @@
 .layout-portrait .swipe-rail-icon { width: 36px; height: 36px; font-size: 16px; }
 .layout-portrait .swipe-genres { gap: 6px; }
 .layout-portrait .swipe-genre { padding: 4px 9px; font-size: 11px; }
+.platform-android .swipe-genre { padding: 4px 10px; font-size: 11px; }
 .layout-portrait .swipe-episodes { width: min(280px, 78vw); }
 
 @media (max-width: 760px) {

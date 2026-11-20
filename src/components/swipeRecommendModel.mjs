@@ -84,5 +84,7 @@ export function resolveSwipeDirection(delta, threshold = 120) {
 export function formatEpisodeLabel(episode, index) {
   const number = Number(episode?.vid_index || index + 1);
   const title = typeof episode?.title === 'string' ? episode.title.trim() : '';
-  return title ? `第 ${number} 集 · ${title}` : `第 ${number} 集`;
+  // 部分来源（安卓官网解析）把标题直接写成“第N集”，避免出现“第 1 集 · 第1集”。
+  const duplicate = /^第\s*\d+\s*集$/.test(title) && Number(title.replace(/\D/g, '')) === number;
+  return title && !duplicate ? `第 ${number} 集 · ${title}` : `第 ${number} 集`;
 }
