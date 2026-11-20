@@ -103,11 +103,11 @@ npm run test:swipe
 ## 6. 当前自建通道（本机已落地）
 
 - fork：`https://github.com/cunzhang144/hongguo-drama`（分支 `swipe`）
-- Release：`v7.7.0`（安装包 + `latest.yml` + SHA256）
+- Release：`v7.8.0`（安装包 + `latest.yml` + SHA256）
 - 客户端更新源：`src/native/repo-info.js` 统一提供 owner/repo，默认 `cunzhang144/hongguo-drama`；
   `app-update.yml`、electron-updater feed、检查更新 API/发布页、公告地址都从这里取。
   可用 `HONGGUO_REPO_OWNER` / `HONGGUO_REPO_NAME` 覆盖，便于再次迁移。
-- 已安装版本：`7.7.0`（build 7.7.1），`D:\Apps\hongguo-downloader`；更新检查已验证返回本 fork 的 Release URL。
+- 已安装版本：`7.8.0`（build 7.8.1），`D:\Apps\hongguo-downloader`；更新检查已验证返回本 fork 的 Release URL。
 
 ### 发新版本
 
