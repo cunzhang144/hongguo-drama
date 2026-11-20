@@ -72,10 +72,10 @@ npm ci
 npm run build:swipe
 ```
 
-产物：`dist/hongguo-downloader-7.6-win-x64-setup.exe`（及 `latest.yml`）。
+产物：`dist/hongguo-downloader-7.7-win-x64-setup.exe`（及 `latest.yml`）。
 
-> 版本策略：源码保持与上游一致的 `7.6.0`（`buildVersion 7.6.1`），这样 `check-release-version` / `check-windows-installer` 仍通过。
-> 真正发布到 fork 时，把 `package.json` 与 `package-lock.json` 同步改为下一个公开版本（如 `7.7.0`，格式 `X.Y.0`），再打 tag；客户端只比较 fork 的 Release，因此不会被官方版本覆盖。
+> 版本策略：与上游同步开发时保持上游版本（如 `7.6.0`，`buildVersion 7.6.1`），便于 `check-release-version` / `check-windows-installer` 通过；
+> 发布到 fork 时把 `package.json`、`package-lock.json` 与 artifactName 改为下一个公开版本（本项目首个自建版本为 `7.7.0` / `buildVersion 7.7.1`），客户端只比较 fork 的 Release，因此不会被官方版本覆盖。
 
 ## 4. 同步上游
 
